@@ -67,6 +67,8 @@ const state = {
   ortho: url.get('camera') !== 'perspective',
   tilt: num('tilt', 20),
   zoom: 1,
+  /** How far the whole picture is moved, in CSS pixels: the tori, the maps and the captions together. */
+  pan: { x: 0, y: 0 },
 };
 const lines: LineState = {
   on: flag('lines', true),
@@ -178,6 +180,7 @@ function load(key: string): void {
     if (!lines.on) p.object.remove(p.rails.group);
     world.add(p.object);
   });
+  coverKey = '';
   selfTest(data);
   buildVertexButtons();
   syncControls();
@@ -267,7 +270,7 @@ const COVER_LABEL: Record<string, string> = {
   corrected: 'universal cover',
 };
 /** What the cover maps were last laid out with: CSS pixels per unit length, and the device pixel ratio. */
-let coverUnit = 0, coverDpr = 1;
+let coverUnit = 0, coverDpr = 1, coverKey = '';
 /** The configurations now drawn on the two tori. */
 let drawn: { lift: Float64Array; corrected: Float64Array } | null = null;
 function drawCovers(which: 'all' | 'tori'): void {
@@ -311,14 +314,15 @@ function fit(): void {
   cam.position.set(c.x, c.y, rowBox.max.z + d);
   cam.near = Math.max(0.01, d / 50); cam.far = d * 10 + 10;
   cam.lookAt(c.x, c.y, c.z);
-  cam.setViewOffset(W, H, 0, shift, W, H);
+  // the picture is moved as a whole by shifting the image, exact for both cameras
+  cam.setViewOffset(W, H, -state.pan.x, shift - state.pan.y, W, H);
   cam.updateProjectionMatrix();
   const half = need * state.zoom;
   orthographic.left = -half * W / H; orthographic.right = half * W / H; orthographic.top = half; orthographic.bottom = -half;
   orthographic.position.set(c.x, c.y, rowBox.max.z + 10);
   orthographic.near = 0.01; orthographic.far = 30;
   orthographic.lookAt(c.x, c.y, c.z);
-  orthographic.setViewOffset(W, H, 0, shift, W, H);
+  orthographic.setViewOffset(W, H, -state.pan.x, shift - state.pan.y, W, H);
   orthographic.updateProjectionMatrix();
 
   // where the row's lowest corner and the panels' centres land, at the home pose
@@ -344,12 +348,16 @@ function fit(): void {
     // one scale for the three maps: the whole unfolding of Ψ fits, with a margin for its neighbours to show
     const ext = unfoldingExtent(model.T, model.flat, row.basis);
     coverUnit = Math.min((mw - 16) / (ext.w * 1.08), (coverH - 26) / (ext.h * 1.04));
+    // a map is drawn again only if its size or scale changed: moving the picture just moves it
+    const key = `${mw}x${coverH}@${coverDpr}:${coverUnit}:${state.torus}`;
     coverEls.forEach((cv, i) => {
       cv.style.left = `${centres[i]}px`; cv.style.top = `${top}px`;
-      cv.style.width = `${mw}px`; cv.style.height = `${coverH}px`;
-      cv.width = Math.round(mw * coverDpr); cv.height = Math.round(coverH * coverDpr);
+      if (key !== coverKey) {
+        cv.style.width = `${mw}px`; cv.style.height = `${coverH}px`;
+        cv.width = Math.round(mw * coverDpr); cv.height = Math.round(coverH * coverDpr);
+      }
     });
-    drawCovers('all');
+    if (key !== coverKey) { coverKey = key; drawCovers('all'); }
   }
   // the captions, below everything else and fixed
   const capTop = state.covers ? top + coverH + 8 : Math.round(lowest + 16);
@@ -379,13 +387,42 @@ function pick(e: PointerEvent): Panel | null {
   if (!hits.length) return null;
   return panels.find((p) => p.pickables.includes(hits[0].object)) ?? null;
 }
+// A drag turns: over a torus that torus, elsewhere (or with shift) all three. A right-drag, a
+// middle-drag or an ⌥-drag moves the whole picture, and on a touch screen two fingers move it
+// and pinch to zoom.
+const pointers = new Map<number, { x: number; y: number }>();
+let moving: { x: number; y: number } | null = null;
+let pinch: { cx: number; cy: number; d: number } | null = null;
+const pinchState = (): { cx: number; cy: number; d: number } => {
+  const [a, b] = [...pointers.values()];
+  return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) };
+};
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  canvas.setPointerCapture(e.pointerId);
+  if (pointers.size === 2) { drag = null; moving = null; pinch = pinchState(); return; }
+  if (e.button === 1 || e.button === 2 || e.altKey) { moving = { x: e.clientX, y: e.clientY }; canvas.style.cursor = 'move'; return; }
   const hit = pick(e);
   drag = { targets: hit && !e.shiftKey ? [hit.object] : panels.map((p) => p.object), x: e.clientX, y: e.clientY };
-  canvas.setPointerCapture(e.pointerId);
   canvas.style.cursor = 'grabbing';
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size === 2) {
+    const now = pinchState();
+    state.pan.x += now.cx - pinch.cx; state.pan.y += now.cy - pinch.cy;
+    if (pinch.d > 0 && now.d > 0) state.zoom = Math.min(4, Math.max(0.3, state.zoom * pinch.d / now.d));
+    pinch = now;
+    fit();
+    return;
+  }
+  if (moving) {
+    state.pan.x += e.clientX - moving.x; state.pan.y += e.clientY - moving.y;
+    moving = { x: e.clientX, y: e.clientY };
+    fit();
+    return;
+  }
   if (!drag) { canvas.style.cursor = pick(e) ? 'grab' : 'default'; return; }
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY;
@@ -395,7 +432,12 @@ canvas.addEventListener('pointermove', (e) => {
   const q = new THREE.Quaternion().setFromAxisAngle(axis, len * 0.01);
   for (const o of drag.targets) o.quaternion.premultiply(q);
 });
-const endDrag = (e: PointerEvent): void => { if (drag) { drag = null; canvas.releasePointerCapture(e.pointerId); canvas.style.cursor = 'default'; } };
+const endDrag = (e: PointerEvent): void => {
+  pointers.delete(e.pointerId);
+  if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0) { drag = null; moving = null; canvas.style.cursor = 'default'; }
+};
 canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('dblclick', resetView);
@@ -409,6 +451,7 @@ canvas.addEventListener('wheel', (e) => {
 function resetView(): void {
   for (const p of panels) p.object.quaternion.copy(homeQuaternion());
   state.zoom = 1;
+  state.pan = { x: 0, y: 0 };
   fit();
 }
 
@@ -437,7 +480,7 @@ function setLines(on: boolean): void {
 }
 document.getElementById('lines')!.addEventListener('click', () => setLines(!lines.on));
 document.getElementById('captionsbtn')!.addEventListener('click', () => { state.captions = !state.captions; syncControls(); fit(); writeUrl(); });
-function setCovers(on: boolean): void { state.covers = on; syncControls(); fit(); writeUrl(); }
+function setCovers(on: boolean): void { state.covers = on; coverKey = ''; syncControls(); fit(); writeUrl(); }
 function setPathsOn(on: boolean): void { state.paths = on; drawPaths(); syncControls(); writeUrl(); }
 document.getElementById('pathsbtn')!.addEventListener('click', () => setPathsOn(!state.paths));
 document.getElementById('coversbtn')!.addEventListener('click', () => setCovers(!state.covers));

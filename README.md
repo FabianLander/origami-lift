@@ -53,7 +53,7 @@ The captions stand under the maps, placed from the row at its first pose, so tur
 
 ## Using it
 
-Drag a torus to turn it, drag elsewhere to turn all three, double-click to reset. Scroll zooms. Inside a page, scrolling scrolls the page and Ctrl or ⌘ with the wheel zooms. Keys: H shows and hides the controls, L the lift lines, P the vertex paths, C the universal covers, R resets the view. The round button at the bottom right shows and hides the controls too, and fades while they are hidden.
+Drag a torus to turn it, drag elsewhere to turn all three, double-click to reset. A right-drag, a middle-drag or an ⌥-drag moves the whole picture, the tori, the maps and the captions together (the image is shifted, so they stay in register), and on a touch screen two fingers move it and pinch to zoom. Scroll zooms. Inside a page, scrolling scrolls the page and Ctrl or ⌘ with the wheel zooms. Keys: H shows and hides the controls, L the lift lines, P the vertex paths, C the universal covers, R resets the view. The round button at the bottom right shows and hides the controls too, and fades while they are hidden.
 
 Every option is in the URL, and the address bar keeps it up to date, so a link reproduces the view (the poses excepted).
 
