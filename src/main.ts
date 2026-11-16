@@ -13,7 +13,7 @@
  *   ?beads=0                    no bead where the lift puts a vertex (there is no button for it)
  *   ?which=0,1,3                which vertices have a line
  *   ?railw=0.00065 ?beadw=0.0039 radii in diameters of Ψ
- *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?paths=0 (no vertex paths)   ?camera=ortho
+ *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?paths=0 (no vertex paths)   ?camera=perspective (orthographic is the default)
  *   ?tilt=20   ?bg=ffffff   ?texsize=4096
  */
 
@@ -63,7 +63,8 @@ const state = {
   captions: flag('captions', true),
   covers: flag('covers', true),
   paths: flag('paths', true),
-  ortho: url.get('camera') === 'ortho',
+  // orthographic unless asked otherwise (the user's choice, 2026-11-16)
+  ortho: url.get('camera') !== 'perspective',
   tilt: num('tilt', 20),
   zoom: 1,
 };
@@ -555,7 +556,7 @@ function writeUrl(): void {
     if (!state.captions) p.set('captions', '0');
     if (!state.covers) p.set('covers', '0');
     if (!state.paths) p.set('paths', '0');
-    if (state.ortho) p.set('camera', 'ortho');
+    if (!state.ortho) p.set('camera', 'perspective');
     if (state.tilt !== 20) p.set('tilt', String(state.tilt));
     if (bg !== '#ffffff') p.set('bg', bg.slice(1));
     history.replaceState(null, '', `${location.pathname}?${p.toString()}`);

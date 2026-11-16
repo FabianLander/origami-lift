@@ -68,7 +68,7 @@ Every option is in the URL, and the address bar keeps it up to date, so a link r
 | `?captions=0` | without the captions |
 | `?covers=0` | without the maps of the universal covers |
 | `?paths=0` | without the paths of the vertices |
-| `?camera=ortho` | orthographic camera |
+| `?camera=perspective` | a perspective camera (orthographic is the default) |
 | `?tilt=20`, `?bg=ffffff`, `?texsize=4096` | the tilt of the row in degrees, the background, the paper's resolution |
 
 **In a reveal.js slide**, an iframe with the controls hidden:
