@@ -82,8 +82,10 @@ export class Row {
   readonly scale: number;
   readonly railMaterials: THREE.MeshStandardMaterial[];
   private readonly grain: THREE.Texture | null;
-  private readonly basis: { a: Vec2; b: Vec2 };
-  private readonly covolume: number;
+  /** The grid of the sheet of Ψ: its two periods in grid steps. */
+  readonly basis: { a: Vec2; b: Vec2 };
+  /** The area of Ψ, which is the covolume of its lattice. */
+  readonly covolume: number;
   private readonly edgeOnPaper: number;
 
   readonly lines: LineState;

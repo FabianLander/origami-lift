@@ -12,13 +12,15 @@
  *   ?torus=regular|square|hex   ?t=0.1081   ?ui=0 (controls hidden)   ?lines=0   ?beads=0
  *   ?which=0,1,3                which vertices have a line
  *   ?railw=0.00065 ?beadw=0.0039 radii in diameters of Ψ
- *   ?captions=0   ?camera=ortho   ?tilt=20   ?bg=ffffff   ?texsize=4096
+ *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?camera=ortho
+ *   ?tilt=20   ?bg=ffffff   ?texsize=4096
  */
 
 import './style.css';
 import * as THREE from 'three';
 import { LiftModel, type TorusData } from './model.ts';
 import { Row, type Panel, type LineState } from './panels.ts';
+import { drawCover, unfoldingExtent } from './covers.ts';
 import regularData from './data/regular.json';
 import squareData from './data/square.json';
 import hexData from './data/hex.json';
@@ -28,8 +30,13 @@ const TORI: Record<string, TorusData> = {
   square: squareData as unknown as TorusData,
   hex: hexData as unknown as TorusData,
 };
+/** τ̂ with two decimals, in complex notation, with a true minus sign. */
+const fmtTau = ([re, im]: readonly [number, number]): string => {
+  const sgn = (x: number): string => (x < 0 ? '−' : '');
+  return `τ = ${sgn(re)}${Math.abs(re).toFixed(2)} ${im < 0 ? '−' : '+'} ${Math.abs(im).toFixed(2)} i`;
+};
 const SUBTITLE: Record<string, string> = {
-  regular: 'T(46666677)',
+  regular: fmtTau((regularData as unknown as TorusData).tauHat),
   square: 'τ = i',
   hex: 'τ = ρ',
 };
@@ -50,6 +57,7 @@ const state = {
   t: NaN,
   ui: flag('ui', true),
   captions: flag('captions', true),
+  covers: flag('covers', true),
   ortho: url.get('camera') === 'ortho',
   tilt: num('tilt', 20),
   zoom: 1,
@@ -150,6 +158,7 @@ function load(key: string): void {
   if (key === initialTorus && !tFromUrlUsed) { state.t = clampT(num('t', data.tOpen)); tFromUrlUsed = true; }
   row = new Row(model, lines, grain, TEX, DRAFT);
   const lift = model.lift(state.t), cor = model.corrected(state.t);
+  drawn = { lift, corrected: cor.positions };
   panels = [row.buildFold(), row.buildTorus('lift', state.t, lift), row.buildTorus('corrected', state.t, cor.positions)];
   panels.forEach((p, i) => {
     p.object.position.set((i - 1) * (1 + GAP), 0, 0);
@@ -188,6 +197,8 @@ function setT(t: number, final: boolean): void {
   const lift = model.lift(state.t), cor = model.corrected(state.t);
   panels[1].redraw!(state.t, lift);
   panels[2].redraw!(state.t, cor.positions);
+  drawn = { lift, corrected: cor.positions };
+  drawCovers('tori');
   window.clearTimeout(settle);
   if (final) { panels[1].print!('final'); panels[2].print!('final'); }
   else {
@@ -221,6 +232,36 @@ const capEls = KEYS.map((k) => {
   document.getElementById('captions')!.append(el);
   return el;
 });
+/** The maps of the universal covers, one canvas under each panel. */
+const coverEls = KEYS.map(() => {
+  const cv = document.createElement('canvas');
+  document.getElementById('covers')!.append(cv);
+  return cv;
+});
+const COVER_LABEL: Record<string, string> = {
+  fold: 'universal cover',
+  lift: 'translates of its unfolding',
+  corrected: 'universal cover',
+};
+/** What the cover maps were last laid out with: CSS pixels per unit length, and the device pixel ratio. */
+let coverUnit = 0, coverDpr = 1;
+/** The configurations now drawn on the two tori. */
+let drawn: { lift: Float64Array; corrected: Float64Array } | null = null;
+function drawCovers(which: 'all' | 'tori'): void {
+  if (!state.covers || coverUnit <= 0 || !drawn) return;
+  const conf = [model.flat, drawn.lift, drawn.corrected];
+  KEYS.forEach((k, i) => {
+    if (which === 'tori' && i === 0) return;
+    drawCover(coverEls[i], model.T, conf[i], row.basis, coverUnit, coverDpr, COVER_LABEL[k]);
+  });
+}
+
+/**
+ * Frame the row, and lay out what stands under it: the cover maps, then the captions. All of
+ * that is placed from the row at its HOME pose, once per layout, so turning a torus moves
+ * nothing but the torus.
+ */
+const corner = new THREE.Vector3();
 function fit(): void {
   const W = window.innerWidth, H = window.innerHeight;
   renderer.setSize(W, H, false);
@@ -230,15 +271,16 @@ function fit(): void {
   world.updateMatrixWorld(true);
   const rowBox = new THREE.Box3();
   for (const p of panels) for (const o of p.pickables) rowBox.union(new THREE.Box3().setFromObject(o));
-  panels.forEach((p, i) => p.object.quaternion.copy(saved[i]));
-  world.updateMatrixWorld(true);
   const c = rowBox.getCenter(new THREE.Vector3()), size = rowBox.getSize(new THREE.Vector3());
-  const capRoom = state.captions ? 46 : 0;
-  const cover = state.ui ? panelEl.offsetHeight + 24 : 0;
-  const avail = Math.max(H * 0.35, H - cover - capRoom - 24);
+  const capRoom = state.captions ? 44 : 0;
+  const coverH = state.covers ? Math.round(Math.min(200, Math.max(90, H * 0.22))) : 0;
+  const coverGap = state.covers ? 22 : 0;
+  const ui = state.ui ? panelEl.offsetHeight + 24 : 0;
+  const below = ui + capRoom + coverH + coverGap;
+  const avail = Math.max(H * 0.3, H - below - 30);
   const w = size.x / 2, h = size.y / 2;
   const need = Math.max(h / avail, w / (W - 32)) * H * 1.06;    // half heights, in units of the full view's half height
-  const shift = (cover + capRoom) / 2;
+  const shift = below / 2;
   const cam = perspective;
   cam.aspect = W / H;
   const tan = Math.tan((cam.fov * Math.PI) / 360);
@@ -255,6 +297,41 @@ function fit(): void {
   orthographic.lookAt(c.x, c.y, c.z);
   orthographic.setViewOffset(W, H, 0, shift, W, H);
   orthographic.updateProjectionMatrix();
+
+  // where the row's lowest corner and the panels' centres land, at the home pose
+  const view = camera();
+  let lowest = -Infinity;
+  for (const p of panels) for (const o of p.pickables) {
+    const pos = (o as THREE.Mesh).geometry.getAttribute('position');
+    for (let k = 0; k < pos.count; k++) {
+      corner.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld).project(view);
+      lowest = Math.max(lowest, ((1 - corner.y) / 2) * H);
+    }
+  }
+  const centres = panels.map((p) => ((corner.setFromMatrixPosition(p.object.matrixWorld).project(view).x + 1) / 2) * W);
+  panels.forEach((p, i) => p.object.quaternion.copy(saved[i]));
+  world.updateMatrixWorld(true);
+
+  // the cover maps, under the row
+  const top = Math.round(lowest + coverGap);
+  if (state.covers && centres.length === 3) {
+    const pitch = Math.abs(centres[1] - centres[0]);                         // one panel and one gap, in pixels
+    const mw = Math.round(Math.min(pitch * 0.94, coverH * 2.6));
+    coverDpr = Math.min(window.devicePixelRatio || 1, 2);
+    // one scale for the three maps: the whole unfolding of Ψ fits, with a margin for its neighbours to show
+    const ext = unfoldingExtent(model.T, model.flat, row.basis);
+    coverUnit = Math.min((mw - 16) / (ext.w * 1.08), (coverH - 26) / (ext.h * 1.04));
+    coverEls.forEach((cv, i) => {
+      cv.style.left = `${centres[i]}px`; cv.style.top = `${top}px`;
+      cv.style.width = `${mw}px`; cv.style.height = `${coverH}px`;
+      cv.width = Math.round(mw * coverDpr); cv.height = Math.round(coverH * coverDpr);
+    });
+    drawCovers('all');
+  }
+  // the captions, below everything else and fixed
+  const capTop = state.covers ? top + coverH + 8 : Math.round(lowest + 16);
+  capEls.forEach((el, i) => { el.style.left = `${centres[i]}px`; el.style.top = `${capTop}px`; });
+
   // the light: Figure 1's rule, distances in the row's half width
   const unit = Math.max(w, h);
   const dir = new THREE.Vector3(-0.25, 0.45, 1).normalize();
@@ -265,30 +342,6 @@ function fit(): void {
   spot.shadow.camera.near = Math.max(0.05, dist - unit * 1.5);
   spot.shadow.camera.far = dist + unit * 2;
   spot.shadow.focus = Math.min(1, Math.max(0.05, Math.atan((unit * 1.2 + 1) / dist) / spot.angle));
-  placeCaptions();
-}
-/**
- * The captions stand under the row: one baseline, below the lowest corner of any torus as drawn
- * (the tilt brings the bottom of a torus toward the camera, so it is drawn lower than its
- * height says), each centred under its panel.
- */
-const corner = new THREE.Vector3();
-function placeCaptions(): void {
-  const cam = camera();
-  const W = window.innerWidth, H = window.innerHeight;
-  let lowest = -Infinity;
-  for (const p of panels) for (const o of p.pickables) {
-    const pos = (o as THREE.Mesh).geometry.getAttribute('position');
-    for (let k = 0; k < pos.count; k++) {
-      corner.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld).project(cam);
-      lowest = Math.max(lowest, ((1 - corner.y) / 2) * H);
-    }
-  }
-  panels.forEach((p, i) => {
-    const v = corner.setFromMatrixPosition(p.object.matrixWorld).project(cam);
-    capEls[i].style.left = `${((v.x + 1) / 2) * W}px`;
-    capEls[i].style.top = `${lowest + 10}px`;
-  });
 }
 window.addEventListener('resize', fit);
 
@@ -362,6 +415,8 @@ function setLines(on: boolean): void {
 document.getElementById('lines')!.addEventListener('click', () => setLines(!lines.on));
 document.getElementById('beads')!.addEventListener('click', () => { lines.beads = !lines.beads; for (const p of panels) p.rails.refresh(); syncControls(); writeUrl(); });
 document.getElementById('captionsbtn')!.addEventListener('click', () => { state.captions = !state.captions; syncControls(); fit(); writeUrl(); });
+function setCovers(on: boolean): void { state.covers = on; syncControls(); fit(); writeUrl(); }
+document.getElementById('coversbtn')!.addEventListener('click', () => setCovers(!state.covers));
 document.getElementById('camera')!.addEventListener('click', () => { state.ortho = !state.ortho; syncControls(); fit(); writeUrl(); });
 document.getElementById('reset')!.addEventListener('click', resetView);
 document.getElementById('copy')!.addEventListener('click', async () => {
@@ -420,8 +475,9 @@ function syncControls(): void {
   tOut.value = state.t.toFixed(state.t < 0.02 ? 5 : 4);
   tIn.title = `the height of the highest vertex, in diameters of Ψ. The corrected torus is embedded up to t = ${model.data.embeddedUntil.toFixed(model.data.embeddedUntil < 0.02 ? 5 : 4)}`;
   pressed('lines', lines.on); pressed('beads', lines.beads);
-  pressed('captionsbtn', state.captions); pressed('camera', state.ortho);
+  pressed('captionsbtn', state.captions); pressed('camera', state.ortho); pressed('coversbtn', state.covers);
   document.body.classList.toggle('nocaptions', !state.captions);
+  document.body.classList.toggle('nocovers', !state.covers);
   verticesEl.querySelectorAll<HTMLButtonElement>('button.vertex').forEach((b, v) => b.setAttribute('aria-pressed', String(lines.shown[v])));
   document.getElementById('source')!.textContent = model.data.source;
 }
@@ -453,6 +509,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'h' || e.key === 'H') setUi(!state.ui);
   else if (e.key === 'r' || e.key === 'R') resetView();
   else if (e.key === 'l' || e.key === 'L') setLines(!lines.on);
+  else if (e.key === 'c' || e.key === 'C') setCovers(!state.covers);
 });
 
 // ---- the address bar ----
@@ -472,6 +529,7 @@ function writeUrl(): void {
     if (Math.abs(lines.railRadius - 0.00065) > 1e-9) p.set('railw', lines.railRadius.toPrecision(3));
     if (Math.abs(lines.beadRadius - 0.0039) > 1e-9) p.set('beadw', lines.beadRadius.toPrecision(3));
     if (!state.captions) p.set('captions', '0');
+    if (!state.covers) p.set('covers', '0');
     if (state.ortho) p.set('camera', 'ortho');
     if (state.tilt !== 20) p.set('tilt', String(state.tilt));
     if (bg !== '#ffffff') p.set('bg', bg.slice(1));
@@ -482,10 +540,7 @@ function writeUrl(): void {
 // ---- go ----
 load(state.torus);
 setUi(state.ui);
-renderer.setAnimationLoop(() => {
-  placeCaptions();
-  renderer.render(scene, camera());
-});
+renderer.setAnimationLoop(() => renderer.render(scene, camera()));
 
 // a handle for headless checks
 (window as unknown as { __lift: unknown }).__lift = {

@@ -18,7 +18,7 @@ npm run build      # type-check and build to dist/
 
 | button | Ψ and z | correction | the corrected torus is embedded up to |
 |---|---|---|---|
-| universality | a planar torus on T(46666677) at τ̂ = −0.474 + 1.046 i, the one the universality paper's cartoon starts from (Doyle, Lander, Schwartz, Trettel), with its heights | least-norm vectors, proof of Proposition 2.2 | t = 0.11626 |
+| universality example | a planar torus on T(46666677) at τ̂ = −0.474 + 1.046 i (the button says −0.47 + 1.05 i), the one the universality paper's cartoon starts from (Doyle, Lander, Schwartz, Trettel), with its heights | least-norm vectors, proof of Proposition 2.2 | t = 0.11626 |
 | square | the square fold Q⁰ on T(66666666), modulus i, with ζ (Lander, "The two most symmetric flat tori as eight-vertex paper tori", arXiv:2609.10703, Table 1, Proposition 2) | the paper's nine coordinates, Section 6 | t = 0.07132 (0.1376 in the paper's units) |
 | hexagonal | the hexagonal fold P⁰ on T(46666677), modulus ρ, with ζ′ (same paper) | the paper's nine coordinates | t = 0.01212 (0.01316 in the paper's units) |
 
@@ -37,9 +37,15 @@ The graph paper has square cells and evenly wide lines on the flattened and on t
 
 While the slider moves the two tori are printed at 1024 texels, and 0.3 s after it rests at full size (4096, or 2048 on touch devices).
 
+## The universal covers
+
+Under each torus a small map shows its universal cover (`src/covers.ts`, the toggle `universal covers`, key C, `?covers=0` to open without). The torus is unfolded along the engine's fixed tree of faces, and the unfolding is laid down again at every translate by its two periods. On the flattened and the corrected torus the copies tile the plane, which is the universal cover with the triangulation lifted. The lift is not flat: its periods are those of its pseudo-modulus, its unfolding does not close up, and its copies leave slits and overlap. The copies are filled translucently, so an overlap shows darker and a slit white, and the map is labelled "translates of its unfolding". The unfolding itself is outlined darker. Every map has v1 pointing right, and the three share one scale, at which the whole unfolding of Ψ fits. The square grid of the paper is drawn face by face, so on the lift it breaks across the cut edges as it does on the torus.
+
+The captions stand under the maps, placed from the row at its first pose, so turning a torus does not move them.
+
 ## Using it
 
-Drag a torus to turn it, drag elsewhere to turn all three, double-click to reset. Scroll zooms. Inside a page, scrolling scrolls the page and Ctrl or ⌘ with the wheel zooms. Keys: H shows and hides the controls, L the lift lines, R resets the view. The round button at the bottom right shows and hides the controls too, and fades while they are hidden.
+Drag a torus to turn it, drag elsewhere to turn all three, double-click to reset. Scroll zooms. Inside a page, scrolling scrolls the page and Ctrl or ⌘ with the wheel zooms. Keys: H shows and hides the controls, L the lift lines, C the universal covers, R resets the view. The round button at the bottom right shows and hides the controls too, and fades while they are hidden.
 
 Every option is in the URL, and the address bar keeps it up to date, so a link reproduces the view (the poses excepted).
 
@@ -52,6 +58,7 @@ Every option is in the URL, and the address bar keeps it up to date, so a link r
 | `?which=0,1,3` | which vertices have a line |
 | `?railw=0.00065`, `?beadw=0.0039` | radii of a line and a bead, in diameters of Ψ |
 | `?captions=0` | without the captions |
+| `?covers=0` | without the maps of the universal covers |
 | `?camera=ortho` | orthographic camera |
 | `?tilt=20`, `?bg=ffffff`, `?texsize=4096` | the tilt of the row in degrees, the background, the paper's resolution |
 

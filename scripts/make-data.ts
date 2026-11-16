@@ -114,7 +114,7 @@ function finish(draft: Draft, dt: number): TorusData {
 const room = JSON.parse(readFileSync(here('./sources/regular-1.json'), 'utf8'));
 const regular: Draft = {
   key: 'regular',
-  title: 'universality',
+  title: 'universality example',
   source: 'A planar torus on T(46666677) at τ̂ = −0.474 + 1.046 i, the one the universality paper\'s cartoon starts from, with its lift heights. Corrected with the least-norm vectors of Proposition 2.2 (Doyle, Lander, Schwartz, Trettel).',
   correction: 'least-norm',
   triangulation: 'v8-3',
