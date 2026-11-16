@@ -1,0 +1,24 @@
+{
+  "name": "origami-lift",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A flattened origami torus, its lift out of the plane, and the corrected lift: the three steps of the inflation argument for eight-vertex paper tori.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "make-data": "tsx scripts/make-data.ts"
+  },
+  "dependencies": {
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.184.1",
+    "tsx": "^4.22.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4"
+  }
+}

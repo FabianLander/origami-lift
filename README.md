@@ -1,0 +1,72 @@
+# origami-lift
+
+Three steps of the inflation argument for eight-vertex paper tori, side by side, with a slider for the height t:
+
+| panel | what it is | flat | embedded |
+|---|---|---|---|
+| flattened, Ψ | a flat torus folded into the plane | yes | no, its sheets coincide |
+| lifted, Ψ + t z | every vertex raised straight up to height t z_v | no | yes |
+| corrected, Ψ + t z + h(t) | the same heights, every vertex moved horizontally until the torus is flat again and has the modulus of Ψ | yes | yes, while t is small |
+
+```
+npm install
+npm run dev        # http://localhost:5466/
+npm run build      # type-check and build to dist/
+```
+
+## The three tori
+
+| button | Ψ and z | correction | the corrected torus is embedded up to |
+|---|---|---|---|
+| universality | a planar torus on T(46666677) at τ̂ = −0.474 + 1.046 i, the one the universality paper's cartoon starts from (Doyle, Lander, Schwartz, Trettel), with its heights | least-norm vectors, proof of Proposition 2.2 | t = 0.11626 |
+| square | the square fold Q⁰ on T(66666666), modulus i, with ζ (Lander, "The two most symmetric flat tori are vertex-minimal paper tori", Table 1, Proposition 2) | the paper's nine coordinates, Section 6 | t = 0.07132 (0.1376 in the paper's units) |
+| hexagonal | the hexagonal fold P⁰ on T(46666677), modulus ρ, with ζ′ (same paper) | the paper's nine coordinates | t = 0.01212 (0.01316 in the paper's units) |
+
+Every Ψ is scaled to diameter 1 and every z to largest |z_v| = 1, so t is the height of the highest vertex in diameters of Ψ. A height in the paper's units is t · diameter / max|ζ|, with the diameters 1.92938 (square) and 1.08601 (hexagonal) and max|ζ| = 1.
+
+The correction solves Φ(Ψ + t z + h) = Φ(Ψ), Φ being the cone deficits at vertices 0 to 6 and the modulus, by Newton's method continued in t from the plane. The unknown is h = E ε with E = S (J₀ S)⁻¹, J₀ = dΦ at Ψ in the sixteen horizontal coordinates. S = J₀ᵀ gives the universality paper's least-norm vectors. S picking nine coordinates gives the square and hexagonal paper's correction, with the other seven planar coordinates and all heights held fixed. See `src/model.ts`.
+
+Checks, double precision. On the square and hexagonal tori the corrections agree with the engine's own `correctFold` (low-vertex-flat-tori, `src/core/search/correct-fold.ts`, a separate implementation by projection) to 2e-14 at twelve heights. On the universality torus the embedded range agrees with `room.mjs` (paper-tori-proofs) to seven digits. At load the page recomputes the corrections recorded in its data and prints the largest difference in the console (1e-15 to 6e-15).
+
+## The paper
+
+The graph paper has square cells and evenly wide lines on the flattened and on the corrected torus.
+
+- **The flattened torus** is printed once, from Ψ, on a periodic canvas: a square grid whose periods are whole numbers of steps, as close to those of Ψ as about 16 cells allow (`src/paper/squarePaper.ts`).
+- **The two tori** are printed from their own unfoldings, as the slider moves (`src/paper/atlasPaper.ts`). The sheet of Ψ is laid on the torus's own two periods. On the corrected torus, which has the modulus of Ψ, that is Ψ's paper again: square cells, unbroken across every edge. On the lift, the two periods are those of its pseudo-modulus, so a cell is the parallelogram that the change of modulus makes of a square, the same on every face. The lift is not flat, so its unfolding does not close up, and across the nine edges the unfolding cuts the grid turns. No face is stretched, and every printed edge lies on its crease.
+
+While the slider moves the two tori are printed at 1024 texels, and 0.3 s after it rests at full size (4096, or 2048 on touch devices).
+
+## Using it
+
+Drag a torus to turn it, drag elsewhere to turn all three, double-click to reset. Scroll zooms. Inside a page, scrolling scrolls the page and Ctrl or ⌘ with the wheel zooms. Keys: H shows and hides the controls, L the lift lines, R resets the view. The round button at the bottom right shows and hides the controls too, and fades while they are hidden.
+
+Every option is in the URL, and the address bar keeps it up to date, so a link reproduces the view (the poses excepted).
+
+| option | |
+|---|---|
+| `?torus=regular\|square\|hex` | which torus |
+| `?t=0.1081` | the height |
+| `?ui=0` | open with the controls hidden |
+| `?lines=0`, `?beads=0` | without the lift lines, without the beads and links |
+| `?which=0,1,3` | which vertices have a line |
+| `?railw=0.00065`, `?beadw=0.0039` | radii of a line and a bead, in diameters of Ψ |
+| `?captions=0` | without the captions |
+| `?camera=ortho` | orthographic camera |
+| `?tilt=20`, `?bg=ffffff`, `?texsize=4096` | the tilt of the row in degrees, the background, the paper's resolution |
+
+**In a reveal.js slide**, an iframe with the controls hidden:
+
+```html
+<iframe data-src="https://fabianlander.github.io/origami-lift/?torus=square&ui=0" width="100%" height="100%" style="border:0"></iframe>
+```
+
+**On the website**, as a demo card or in a post with the `Experiment` component (see `docs/embedding-experiments-in-astro.md` in the site repo).
+
+## Deploying
+
+`.github/workflows/deploy.yml` builds and publishes `dist/` to GitHub Pages on every push to `main`. The repository's Settings, Pages, Source has to be set to GitHub Actions. The build uses a relative base, so it serves at `https://fabianlander.github.io/origami-lift/` and inside an iframe alike.
+
+## Where the code comes from
+
+`src/engine/` is a copy of the files of low-vertex-flat-tori (`~/src/low-complexity-paper-tori`, commit dbb435f) that the app needs, at the same paths under `src/`, unchanged except `core/triangulations/index.ts`, which registers only the eight-vertex triangulations. `src/paper/` holds `squarePaper.ts` and `atlasPaper.ts` from that repo's `renders/lift-correct/` and `layers.ts` from `renders/square-inflation/`, both of which were uncommitted there on 2026-11-16. `public/crease-rough.jpg` is the paper grain `assets/textures/crease-rough-1024.png` of that repo, saved as JPEG. The universality torus's data is `scripts/sources/regular-1.json`, written by `universality/inflation/experiments/lift-room/room.mjs` in paper-tori-proofs. `npm run make-data` writes `src/data/`.

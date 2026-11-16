@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Lifting an origami torus</title>
+    <meta name="description" content="A flattened origami torus, its lift out of the plane, and the corrected lift, for eight-vertex paper tori." />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="captions" aria-hidden="true"></div>
+
+    <section id="panel" aria-label="controls">
+      <div class="row">
+        <div class="seg" id="tori" role="tablist" aria-label="torus"></div>
+      </div>
+      <div class="row slider">
+        <label for="t">height&nbsp;<i>t</i></label>
+        <input id="t" type="range" />
+        <output id="tval" for="t"></output>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="row">
+        <button class="pill" id="lines" type="button" title="the vertical lines along which the vertices are lifted (L)">lift lines</button>
+        <button class="pill" id="beads" type="button" title="a bead where the lift put each vertex, and on the corrected torus a link to where it went">where it was</button>
+        <span class="spacer"></span>
+        <button class="pill quiet" id="more" type="button" aria-expanded="false">more</button>
+      </div>
+      <div id="morebox" hidden>
+        <div class="row" id="vertices" aria-label="which vertices have a line"></div>
+        <div class="row slider small">
+          <label for="railw">line width</label><input id="railw" type="range" min="0" max="1000" /><output id="railwval"></output>
+        </div>
+        <div class="row slider small">
+          <label for="beadw">bead size</label><input id="beadw" type="range" min="0" max="1000" /><output id="beadwval"></output>
+        </div>
+        <div class="row">
+          <button class="pill" id="captionsbtn" type="button">captions</button>
+          <button class="pill" id="camera" type="button">orthographic</button>
+          <span class="spacer"></span>
+          <button class="pill quiet" id="reset" type="button" title="every torus back to its first pose (R, or double-click)">reset view</button>
+          <button class="pill quiet" id="copy" type="button" title="a link that opens this view">copy link</button>
+        </div>
+        <p class="source" id="source"></p>
+        <p class="hint">Drag a torus to turn it, drag elsewhere to turn all three. Scroll to zoom (with Ctrl or ⌘ inside a page). H hides the controls.</p>
+      </div>
+    </section>
+    <button id="hide" type="button" title="hide the controls (H)" aria-controls="panel" aria-expanded="true"></button>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
