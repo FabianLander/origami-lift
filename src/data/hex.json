@@ -1,7 +1,7 @@
 {
  "key": "hex",
  "title": "hexagonal",
- "source": "The hexagonal fold P⁰ on T(46666677), exactly flat with modulus ρ, and its lift direction ζ′. Corrected in the nine coordinates of Lander, \"The two most symmetric flat tori are vertex-minimal paper tori\", Section 6.",
+ "source": "The hexagonal fold P⁰ on T(46666677), exactly flat with modulus ρ, and its lift direction ζ′. Corrected in the nine coordinates of Lander, \"The two most symmetric flat tori as eight-vertex paper tori\", arXiv:2609.10703, Section 6.",
  "correction": "nine-coordinates",
  "triangulation": "v8-3",
  "psi": [

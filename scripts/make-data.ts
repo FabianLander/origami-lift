@@ -9,7 +9,7 @@
  *          paper-tori-proofs (a copy is `scripts/sources/regular-1.json`). Corrected with the
  *          least-norm vectors of the proof of Proposition 2.2.
  * square   The square fold Q⁰ on T(66666666) = v8-7 and its lift direction ζ, from Lander,
- *          "The two most symmetric flat tori are vertex-minimal paper tori", Table 1 and
+ *          "The two most symmetric flat tori as eight-vertex paper tori", arXiv:2609.10703, Table 1 and
  *          Proposition 2. Corrected in the paper's nine coordinates (its Section 6).
  * hex      The hexagonal fold P⁰ on T(46666677) = v8-3 and ζ′, the same paper.
  *
@@ -126,9 +126,9 @@ const regular: Draft = {
   noLine: [2],
 };
 const square = fromPaper(SQUARE_FOLD, 'square', 'square',
-  'The square fold Q⁰ on T(66666666), exactly flat with modulus i, and its lift direction ζ. Corrected in the nine coordinates of Lander, "The two most symmetric flat tori are vertex-minimal paper tori", Section 6.');
+  'The square fold Q⁰ on T(66666666), exactly flat with modulus i, and its lift direction ζ. Corrected in the nine coordinates of Lander, "The two most symmetric flat tori as eight-vertex paper tori", arXiv:2609.10703, Section 6.');
 const hex = fromPaper(HEXAGONAL_FOLD, 'hex', 'hexagonal',
-  'The hexagonal fold P⁰ on T(46666677), exactly flat with modulus ρ, and its lift direction ζ′. Corrected in the nine coordinates of Lander, "The two most symmetric flat tori are vertex-minimal paper tori", Section 6.');
+  'The hexagonal fold P⁰ on T(46666677), exactly flat with modulus ρ, and its lift direction ζ′. Corrected in the nine coordinates of Lander, "The two most symmetric flat tori as eight-vertex paper tori", arXiv:2609.10703, Section 6.');
 
 const dt = Number(process.argv[2] ?? 2.5e-4);
 for (const d of [regular, square, hex]) {

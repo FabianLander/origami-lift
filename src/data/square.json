@@ -1,7 +1,7 @@
 {
  "key": "square",
  "title": "square",
- "source": "The square fold Q⁰ on T(66666666), exactly flat with modulus i, and its lift direction ζ. Corrected in the nine coordinates of Lander, \"The two most symmetric flat tori are vertex-minimal paper tori\", Section 6.",
+ "source": "The square fold Q⁰ on T(66666666), exactly flat with modulus i, and its lift direction ζ. Corrected in the nine coordinates of Lander, \"The two most symmetric flat tori as eight-vertex paper tori\", arXiv:2609.10703, Section 6.",
  "correction": "nine-coordinates",
  "triangulation": "v8-7",
  "psi": [

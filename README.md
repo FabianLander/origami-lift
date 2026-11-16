@@ -19,7 +19,7 @@ npm run build      # type-check and build to dist/
 | button | Ψ and z | correction | the corrected torus is embedded up to |
 |---|---|---|---|
 | universality | a planar torus on T(46666677) at τ̂ = −0.474 + 1.046 i, the one the universality paper's cartoon starts from (Doyle, Lander, Schwartz, Trettel), with its heights | least-norm vectors, proof of Proposition 2.2 | t = 0.11626 |
-| square | the square fold Q⁰ on T(66666666), modulus i, with ζ (Lander, "The two most symmetric flat tori are vertex-minimal paper tori", Table 1, Proposition 2) | the paper's nine coordinates, Section 6 | t = 0.07132 (0.1376 in the paper's units) |
+| square | the square fold Q⁰ on T(66666666), modulus i, with ζ (Lander, "The two most symmetric flat tori as eight-vertex paper tori", arXiv:2609.10703, Table 1, Proposition 2) | the paper's nine coordinates, Section 6 | t = 0.07132 (0.1376 in the paper's units) |
 | hexagonal | the hexagonal fold P⁰ on T(46666677), modulus ρ, with ζ′ (same paper) | the paper's nine coordinates | t = 0.01212 (0.01316 in the paper's units) |
 
 Every Ψ is scaled to diameter 1 and every z to largest |z_v| = 1, so t is the height of the highest vertex in diameters of Ψ. A height in the paper's units is t · diameter / max|ζ|, with the diameters 1.92938 (square) and 1.08601 (hexagonal) and max|ζ| = 1.
