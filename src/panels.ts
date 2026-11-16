@@ -15,6 +15,7 @@ import { latticeUV } from '@display/mesh/uv.ts';
 import { layerOrder, layeredCorners } from './paper/layers.ts';
 import { squarePaperTexture, squareBasis } from './paper/squarePaper.ts';
 import { ownSheet, atlasPaperTexture } from './paper/atlasPaper.ts';
+import { periodsOf, type Convention, type Periods } from './paper/pseudo.ts';
 import type { LiftModel } from './model.ts';
 
 /** The black and white paper look. Colours are albedos, see the README. */
@@ -24,6 +25,8 @@ export const LOOK = {
   major: '#808080',
   edge: '#646464',
   rail: '#3c3c3c',
+  /** The paths of the vertices on the corrected torus. */
+  path: '#a8322a',
   gridRepeat: 16,
   gridSubdivisions: 3,
   minorWidth: 0.004,
@@ -55,6 +58,8 @@ export interface Panel {
   redraw?(t: number, positions: Float64Array): void;
   /** Print the paper again from the configuration now drawn (the tori). */
   print?(quality: 'draft' | 'final'): void;
+  /** Draw the vertices' paths from the plane to the height now drawn (the corrected torus). */
+  setPaths?(path: readonly Float64Array[] | null): void;
   dispose(): void;
 }
 
@@ -92,8 +97,15 @@ export class Row {
   readonly textureSize: number;
   readonly draftSize: number;
 
-  constructor(model: LiftModel, lines: LineState, grain: THREE.Texture | null, textureSize: number, draftSize: number) {
+  /** The periods of a torus as the paper of this torus defines them (`./paper/pseudo.ts`). */
+  readonly periods: Periods;
+  /** The colour of the vertices' paths on the corrected torus. */
+  readonly pathMaterial: THREE.MeshStandardMaterial;
+
+  constructor(model: LiftModel, lines: LineState, grain: THREE.Texture | null, textureSize: number, draftSize: number, convention: Convention) {
     this.model = model;
+    this.periods = periodsOf(convention, model.T, model.flat);
+    this.pathMaterial = new THREE.MeshStandardMaterial({ color: LOOK.path, roughness: 0.8, metalness: 0 });
     this.lines = lines;
     this.textureSize = textureSize;
     this.draftSize = draftSize;
@@ -210,10 +222,13 @@ export class Row {
     const { model, centre } = this;
     const T = model.T, F = model.F;
     const geo = new THREE.BufferGeometry();
-    const position = new Float32Array(F * 9), uv = new Float32Array(F * 6);
+    const position = new Float32Array(F * 9), uv = new Float32Array(F * 6), uv1 = new Float32Array(F * 6);
     geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    // the grain is laid on each face's unfolding, so it moves with the paper and not with the atlas
+    geo.setAttribute('uv1', new THREE.BufferAttribute(uv1, 2));
     const material = this.paperMaterial(null);
+    if (material.normalMap) { material.normalMap.channel = 1; material.normalMap.repeat.set(1, 1); }
     const mesh = new THREE.Mesh(geo, material);
     mesh.castShadow = mesh.receiveShadow = true;
     const object = new THREE.Group();
@@ -238,7 +253,7 @@ export class Row {
       rails.place(height, q);
     };
     const print = (quality: 'draft' | 'final'): void => {
-      const sheet = ownSheet(T, shown, this.basis, 'modulus');
+      const sheet = ownSheet(T, shown, this.basis, 'modulus', this.periods);
       const baked = atlasPaperTexture(sheet, {
         size: quality === 'draft' ? this.draftSize : this.textureSize, quick: quality === 'draft',
         bg: LOOK.paper, minor: LOOK.minor, major: LOOK.major, gridSubdivisions: LOOK.gridSubdivisions,
@@ -251,19 +266,33 @@ export class Row {
       material.map = baked.texture;
       material.needsUpdate = true;
       old?.dispose();
-      if (material.normalMap) {
-        // as many grain tiles per area of paper as on the fold
-        const r = LOOK.grainRepeat * baked.span / Math.sqrt(this.covolume);
-        material.normalMap.repeat.set(r, r);
+      // as many grain tiles per area of paper as on the fold, in the coordinates of the unfolding
+      const g = LOOK.grainRepeat / Math.sqrt(this.covolume);
+      sheet.corners.forEach((tri, f) => tri.forEach((p, k) => { uv1[(f * 3 + k) * 2] = g * p[0]; uv1[(f * 3 + k) * 2 + 1] = g * p[1]; }));
+      geo.attributes.uv1.needsUpdate = true;
+    };
+    // the vertices' paths, as tubes, rebuilt with the height; pieces are taken out, never hidden
+    const paths = new THREE.Group();
+    object.add(paths);
+    const setPaths = (path: readonly Float64Array[] | null): void => {
+      for (const c of [...paths.children]) { paths.remove(c); (c as THREE.Mesh).geometry.dispose(); }
+      if (!path || path.length < 2) return;
+      for (let v = 0; v < model.V; v++) {
+        if (!this.lines.shown[v]) continue;
+        const pts = path.map((q) => new THREE.Vector3(q[3 * v] - centre[0], q[3 * v + 1] - centre[1], q[3 * v + 2]));
+        const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.min(400, 2 * pts.length), this.lines.railRadius * 1.5, 8, false), this.pathMaterial);
+        tube.castShadow = true;
+        paths.add(tube);
       }
     };
     redraw(t, positions);
     print('final');
     return {
-      key, object, pickables: [mesh], rails, redraw, print,
-      dispose: () => { geo.dispose(); material.map?.dispose(); material.normalMap?.dispose(); material.dispose(); },
+      key, object, pickables: [mesh], rails, redraw, print, setPaths: key === 'corrected' ? setPaths : undefined,
+      dispose: () => { setPaths(null); geo.dispose(); material.map?.dispose(); material.normalMap?.dispose(); material.dispose(); },
     };
   }
 
-  dispose(): void { for (const m of this.railMaterials) m.dispose(); }
+  dispose(): void { for (const m of this.railMaterials) m.dispose(); this.pathMaterial.dispose(); }
 }

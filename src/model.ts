@@ -224,6 +224,23 @@ export class LiftModel {
     return eps ? this.hOf(eps) : null;
   }
 
+  /**
+   * The corrected tori from the plane up to height t: at every height of the grid below t and
+   * at t itself. Each vertex's coordinates along it are the vertex's path on the flat locus.
+   */
+  pathTo(t: number): Float64Array[] {
+    const dt = this.tEnd / LiftModel.GRID;
+    const h = this.correction(t);                                   // fills the grid up to t
+    const out = [this.flat];
+    for (let j = 1; j < this.grid.length && j * dt < t - 1e-12; j++) {
+      const eps = this.grid[j];
+      if (!eps) break;
+      out.push(this.place(j * dt, this.hOf(eps)));
+    }
+    if (h) out.push(this.place(t, h));
+    return out;
+  }
+
   /** The lift Ψ + t z. */
   lift(t: number): Float64Array { return this.place(t, null); }
 

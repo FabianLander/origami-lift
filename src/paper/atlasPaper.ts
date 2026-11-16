@@ -13,18 +13,20 @@
  *
  *   the sheet    The engine unfolds the torus along its fixed tree of faces (`developNet`) and
  *                reads two periods v1, v2 off its two generator loops (`modulus`). For a flat
- *                torus they are its lattice. For any other they are what the paper calls the
- *                modulus of the configuration, here the PSEUDO-MODULUS τ = v2 / v1.
+ *                torus they are its lattice. A torus that is not flat has no modulus, and every
+ *                way of developing gives other periods: the caller may pass the periods of a
+ *                paper's pseudo-modulus (`./pseudo.ts`), which agree with these on flat tori.
  *   the grid     The sheet of the planar torus Ψ has a grid steps along its first period and b
  *                along its second (Gaussian integers, `squareBasis`). The same sheet is laid
  *                on the periods of THIS torus: a point P of the unfolding has the grid
  *                coordinate g = A M⁻¹ P, with M = [v1 v2] and A = [a b]. On a torus with the
  *                modulus of Ψ (the corrected one) that is Ψ's grid again, square to the
  *                accuracy of `squareBasis`, and it closes up. On the lift a cell is the
- *                parallelogram that the changed modulus makes of a square, the same on every
- *                face, and the grid turns across a cut edge by the angle the unfolding fails
- *                to close by. Both are what is wrong with the lift, and nothing else is:
- *                a face is unfolded isometrically, so the print is not stretched anywhere.
+ *                parallelogram that the change of pseudo-modulus makes of a square, the same on
+ *                every face (its shape depends on which periods are used), and across a cut
+ *                edge the grid breaks: the two sides are turned by the rotation the unfolding
+ *                picks up there and offset, by up to about half a cell. A face is unfolded
+ *                isometrically, so the print is not stretched anywhere.
  *                (`cells: 'square'` draws exact squares instead, g = (a / v1) P.)
  *   the edges    Each face prints its own three edges, centred on them, so half of each line
  *                lies on the face and the other half is printed by the neighbour. Every edge
@@ -35,8 +37,8 @@
  *                left until it is `gap` texels from its neighbours.
  *
  * Choosing a fresh square grid for each pseudo-modulus (`squareBasis(τ)`) was tried and is
- * not done: as t moves by 0.003 the best Gaussian pair changes every time, with cells from
- * 0.07 to 0.12 of the diameter turned anywhere between −88° and 90°.
+ * not done: on the universality example the best Gaussian pair changes at 50 of 58 steps of
+ * 0.003 in t, with cells of 0.07 to 0.12 of the diameter at any orientation.
  *
  * `ownSheet` and `packTriangles` are pure. `atlasPaperTexture` is the render boundary.
  */
@@ -83,9 +85,13 @@ export function ownSheet(
   positions: ArrayLike<number>,
   basis: { readonly a: Vec2; readonly b: Vec2 },
   cells: 'modulus' | 'square' = 'modulus',
+  periods?: (positions: ArrayLike<number>) => { v1: Vec2; v2: Vec2 },
 ): OwnSheet {
   const net = developNet(triang, positions);
-  const { v1, v2, tau } = modulus(triang, positions);
+  // the periods: the engine's two loops, or a paper's own pseudo-modulus (see ./pseudo.ts)
+  const { v1, v2 } = periods ? periods(positions) : modulus(triang, positions);
+  const n1 = v1[0] * v1[0] + v1[1] * v1[1];
+  const tau: Vec2 = [(v1[0] * v2[0] + v1[1] * v2[1]) / n1, (v1[0] * v2[1] - v1[1] * v2[0]) / n1];
   const { a, b } = basis;
   let toGrid: Mat2;
   if (cells === 'square') {

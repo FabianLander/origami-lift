@@ -12,7 +12,7 @@
  *   ?torus=regular|square|hex   ?t=0.1081   ?ui=0 (controls hidden)   ?lines=0   ?beads=0
  *   ?which=0,1,3                which vertices have a line
  *   ?railw=0.00065 ?beadw=0.0039 radii in diameters of Ψ
- *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?camera=ortho
+ *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?paths=0 (no vertex paths)   ?camera=ortho
  *   ?tilt=20   ?bg=ffffff   ?texsize=4096
  */
 
@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import { LiftModel, type TorusData } from './model.ts';
 import { Row, type Panel, type LineState } from './panels.ts';
 import { drawCover, unfoldingExtent } from './covers.ts';
+import { UNIVERSALITY, SOLO_SQUARE, SOLO_HEX, paperTau, reducer, moebius, type Convention } from './paper/pseudo.ts';
 import regularData from './data/regular.json';
 import squareData from './data/square.json';
 import hexData from './data/hex.json';
@@ -31,10 +32,12 @@ const TORI: Record<string, TorusData> = {
   hex: hexData as unknown as TorusData,
 };
 /** τ̂ with two decimals, in complex notation, with a true minus sign. */
-const fmtTau = ([re, im]: readonly [number, number]): string => {
-  const sgn = (x: number): string => (x < 0 ? '−' : '');
-  return `τ = ${sgn(re)}${Math.abs(re).toFixed(2)} ${im < 0 ? '−' : '+'} ${Math.abs(im).toFixed(2)} i`;
+const fmtTau = ([re, im]: readonly [number, number], digits = 2): string => {
+  const sgn = (x: number): string => (x < 0 && Math.abs(x) >= 0.5 * 10 ** -digits ? '−' : '');
+  return `τ = ${sgn(re)}${Math.abs(re).toFixed(digits)} ${im < 0 ? '−' : '+'} ${Math.abs(im).toFixed(digits)} i`;
 };
+/** Whose pseudo-modulus each torus has: the paper it belongs to (see ./paper/pseudo.ts). */
+const CONVENTION: Record<string, Convention> = { regular: UNIVERSALITY, square: SOLO_SQUARE, hex: SOLO_HEX };
 const SUBTITLE: Record<string, string> = {
   regular: fmtTau((regularData as unknown as TorusData).tauHat),
   square: 'τ = i',
@@ -58,6 +61,7 @@ const state = {
   ui: flag('ui', true),
   captions: flag('captions', true),
   covers: flag('covers', true),
+  paths: flag('paths', true),
   ortho: url.get('camera') === 'ortho',
   tilt: num('tilt', 20),
   zoom: 1,
@@ -133,6 +137,7 @@ const CAPTION: Record<string, [string, string]> = {
   corrected: ['corrected', 'Ψ + t z + h(t)'],
 };
 let model: LiftModel;
+let toFundamental: [number, number, number, number] = [1, 0, 0, 1];
 let row: Row;
 let panels: Panel[] = [];
 const world = new THREE.Group();
@@ -156,10 +161,13 @@ function load(key: string): void {
   }
   if (!Number.isFinite(state.t) || key !== initialTorus || tFromUrlUsed) state.t = data.tOpen;
   if (key === initialTorus && !tFromUrlUsed) { state.t = clampT(num('t', data.tOpen)); tFromUrlUsed = true; }
-  row = new Row(model, lines, grain, TEX, DRAFT);
+  row = new Row(model, lines, grain, TEX, DRAFT, CONVENTION[key]);
+  // the pseudo-modulus is reported in the paper's own basis, reduced the way Ψ's modulus reduces
+  toFundamental = reducer(paperTau(CONVENTION[key], model.T, model.flat));
   const lift = model.lift(state.t), cor = model.corrected(state.t);
   drawn = { lift, corrected: cor.positions };
   panels = [row.buildFold(), row.buildTorus('lift', state.t, lift), row.buildTorus('corrected', state.t, cor.positions)];
+  drawPaths();
   panels.forEach((p, i) => {
     p.object.position.set((i - 1) * (1 + GAP), 0, 0);
     p.object.quaternion.copy(homeQuaternion());
@@ -199,6 +207,7 @@ function setT(t: number, final: boolean): void {
   panels[2].redraw!(state.t, cor.positions);
   drawn = { lift, corrected: cor.positions };
   drawCovers('tori');
+  drawPaths();
   window.clearTimeout(settle);
   if (final) { panels[1].print!('final'); panels[2].print!('final'); }
   else {
@@ -210,11 +219,15 @@ function setT(t: number, final: boolean): void {
   writeUrl();
 }
 
+/** The vertices' paths on the corrected torus, from the plane up to the height now set. */
+function drawPaths(): void { panels[2]?.setPaths?.(state.paths ? model.pathTo(state.t) : null); }
+
 const statusEl = document.getElementById('status')!;
 function status(lift: Float64Array, cor: { positions: Float64Array; found: boolean; move: number }): void {
   const ml = model.measure(lift);
   const off = ml.coneDeficit >= 0.01 ? ml.coneDeficit.toFixed(2) : ml.coneDeficit.toExponential(1);
-  const parts = [`lift: cone angles off by ${off}`];
+  const mu = moebius(toFundamental, paperTau(CONVENTION[state.torus], model.T, lift));
+  const parts = [`lift: cone angles off by ${off}, pseudo-modulus ${fmtTau(mu, 3).replace('τ = ', '')}`];
   if (!cor.found) parts.push('<span class="bad">no correction found at this height</span>');
   else {
     const mc = model.measure(cor.positions);
@@ -252,7 +265,7 @@ function drawCovers(which: 'all' | 'tori'): void {
   const conf = [model.flat, drawn.lift, drawn.corrected];
   KEYS.forEach((k, i) => {
     if (which === 'tori' && i === 0) return;
-    drawCover(coverEls[i], model.T, conf[i], row.basis, coverUnit, coverDpr, COVER_LABEL[k]);
+    drawCover(coverEls[i], model.T, conf[i], row.basis, coverUnit, coverDpr, COVER_LABEL[k], row.periods);
   });
 }
 
@@ -416,6 +429,8 @@ document.getElementById('lines')!.addEventListener('click', () => setLines(!line
 document.getElementById('beads')!.addEventListener('click', () => { lines.beads = !lines.beads; for (const p of panels) p.rails.refresh(); syncControls(); writeUrl(); });
 document.getElementById('captionsbtn')!.addEventListener('click', () => { state.captions = !state.captions; syncControls(); fit(); writeUrl(); });
 function setCovers(on: boolean): void { state.covers = on; syncControls(); fit(); writeUrl(); }
+function setPathsOn(on: boolean): void { state.paths = on; drawPaths(); syncControls(); writeUrl(); }
+document.getElementById('pathsbtn')!.addEventListener('click', () => setPathsOn(!state.paths));
 document.getElementById('coversbtn')!.addEventListener('click', () => setCovers(!state.covers));
 document.getElementById('camera')!.addEventListener('click', () => { state.ortho = !state.ortho; syncControls(); fit(); writeUrl(); });
 document.getElementById('reset')!.addEventListener('click', resetView);
@@ -439,7 +454,7 @@ const logSlider = (id: string, lo: number, hi: number, get: () => number, set: (
   const show = (): void => { out.value = `${(200 * get()).toFixed(2)}%`; };
   input.value = String(to(get()));
   show();
-  input.addEventListener('input', () => { set(from(Number(input.value))); for (const p of panels) p.rails.refresh(); show(); writeUrl(); });
+  input.addEventListener('input', () => { set(from(Number(input.value))); for (const p of panels) p.rails.refresh(); drawPaths(); show(); writeUrl(); });
 };
 logSlider('railw', 1e-4, 1e-2, () => lines.railRadius, (x) => { lines.railRadius = x; });
 logSlider('beadw', 5e-4, 3e-2, () => lines.beadRadius, (x) => { lines.beadRadius = x; });
@@ -456,7 +471,7 @@ function buildVertexButtons(): void {
     b.textContent = `${v}${z > 0 ? '↑' : z < 0 ? '↓' : '·'}`;
     b.title = `vertex ${v}, height ${z.toFixed(3)} t`;
     b.disabled = Math.abs(z) < 1e-9;
-    b.addEventListener('click', () => { lines.shown[v] = !lines.shown[v]; for (const p of panels) p.rails.refresh(); syncControls(); writeUrl(); });
+    b.addEventListener('click', () => { lines.shown[v] = !lines.shown[v]; for (const p of panels) p.rails.refresh(); drawPaths(); syncControls(); writeUrl(); });
     // pointing at a button colours that vertex's line, to tell which is which
     b.addEventListener('pointerenter', () => row.railMaterials[v].color.set('#c0392b'));
     b.addEventListener('pointerleave', () => row.railMaterials[v].color.set('#3c3c3c'));
@@ -464,7 +479,7 @@ function buildVertexButtons(): void {
   });
   const all = document.createElement('button');
   all.type = 'button'; all.className = 'pill quiet'; all.textContent = 'all';
-  all.addEventListener('click', () => { const on = !lines.shown.every(Boolean); lines.shown = lines.shown.map(() => on); for (const p of panels) p.rails.refresh(); syncControls(); writeUrl(); });
+  all.addEventListener('click', () => { const on = !lines.shown.every(Boolean); lines.shown = lines.shown.map(() => on); for (const p of panels) p.rails.refresh(); drawPaths(); syncControls(); writeUrl(); });
   verticesEl.append(all);
 }
 
@@ -475,7 +490,7 @@ function syncControls(): void {
   tOut.value = state.t.toFixed(state.t < 0.02 ? 5 : 4);
   tIn.title = `the height of the highest vertex, in diameters of Ψ. The corrected torus is embedded up to t = ${model.data.embeddedUntil.toFixed(model.data.embeddedUntil < 0.02 ? 5 : 4)}`;
   pressed('lines', lines.on); pressed('beads', lines.beads);
-  pressed('captionsbtn', state.captions); pressed('camera', state.ortho); pressed('coversbtn', state.covers);
+  pressed('captionsbtn', state.captions); pressed('camera', state.ortho); pressed('coversbtn', state.covers); pressed('pathsbtn', state.paths);
   document.body.classList.toggle('nocaptions', !state.captions);
   document.body.classList.toggle('nocovers', !state.covers);
   verticesEl.querySelectorAll<HTMLButtonElement>('button.vertex').forEach((b, v) => b.setAttribute('aria-pressed', String(lines.shown[v])));
@@ -510,6 +525,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'r' || e.key === 'R') resetView();
   else if (e.key === 'l' || e.key === 'L') setLines(!lines.on);
   else if (e.key === 'c' || e.key === 'C') setCovers(!state.covers);
+  else if (e.key === 'p' || e.key === 'P') setPathsOn(!state.paths);
 });
 
 // ---- the address bar ----
@@ -530,6 +546,7 @@ function writeUrl(): void {
     if (Math.abs(lines.beadRadius - 0.0039) > 1e-9) p.set('beadw', lines.beadRadius.toPrecision(3));
     if (!state.captions) p.set('captions', '0');
     if (!state.covers) p.set('covers', '0');
+    if (!state.paths) p.set('paths', '0');
     if (state.ortho) p.set('camera', 'ortho');
     if (state.tilt !== 20) p.set('tilt', String(state.tilt));
     if (bg !== '#ffffff') p.set('bg', bg.slice(1));

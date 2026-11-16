@@ -6,7 +6,8 @@
  * marking loops (`modulus`). For a flat torus, the flattened one and the corrected one, these
  * copies tile the plane: that is its universal cover with the triangulation lifted. The lift is
  * not flat, its periods are those of its pseudo-modulus and its unfolding does not close up,
- * so its copies leave slits and overlap. The copies are filled translucently, so an overlap
+ * so its copies leave slits and overlap. Its periods are those of its pseudo-modulus, as the
+ * paper of the torus defines it (`./paper/pseudo.ts`). The copies are filled translucently, so an overlap
  * shows darker and a slit shows white. One copy, the unfolding itself, is outlined darker.
  *
  * Every map is turned so that v1 points to the right, and all three share one scale, that of
@@ -50,13 +51,14 @@ export function drawCover(
   unit: number,
   dpr: number,
   label: string,
+  periods?: (positions: ArrayLike<number>) => { v1: Vec2; v2: Vec2 },
 ): void {
   const ctx = canvas.getContext('2d')!;
   const W = canvas.width / dpr, H = canvas.height / dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  const sheet = ownSheet(triang, positions, basis, 'modulus');
+  const sheet = ownSheet(triang, positions, basis, 'modulus', periods);
   const { corners, v1, v2, toGrid } = sheet;
   // turn v1 to the right; the y axis of the canvas points down, so flip it
   const ang = -Math.atan2(v1[1], v1[0]);
