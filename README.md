@@ -43,7 +43,7 @@ While the slider moves the two tori are printed at 1024 texels, and 0.3 s after 
 
 ## The paths of the vertices
 
-On the corrected torus each vertex leaves a red curve: its path from Ψ_v on the plane to where it is at the height now set, t ↦ Ψ_v + t z_v + h_v(t), numerically the path along the flat locus (`vertex paths`, key P, `?paths=0` to open without). It is drawn through the solutions on the solver's grid of 240 heights and through the height itself, for the vertices whose lift line is selected, as thick as 1.5 lift lines. The lift line of a vertex is where the lift alone would take it, so the gap between the line and the curve is the correction.
+On the corrected torus each vertex shows its whole path as a red curve, t ↦ Ψ_v + t z_v + h_v(t) from t = 0 on the plane to the top of the slider (1.5 times the height where embeddedness is lost), numerically the path along the flat locus (`vertex paths`, key P, `?paths=0` to open without). The curve stays as it is while the slider moves, and the vertex runs along it. It is drawn through the solutions on the solver's grid of 240 heights, for the vertices whose lift line is selected, as thick as 1.5 lift lines. The lift line of a vertex is where the lift alone would take it, so the gap between the line and the curve is the correction.
 
 ## The universal covers
 
@@ -62,7 +62,7 @@ Every option is in the URL, and the address bar keeps it up to date, so a link r
 | `?torus=regular\|square\|hex` | which torus |
 | `?t=0.1081` | the height |
 | `?ui=0` | open with the controls hidden |
-| `?lines=0`, `?beads=0` | without the lift lines, without the beads and links |
+| `?lines=0`, `?beads=0` | without the lift lines, without the beads and links (the beads have no button) |
 | `?which=0,1,3` | which vertices have a line |
 | `?railw=0.00065`, `?beadw=0.0039` | radii of a line and a bead, in diameters of Ψ |
 | `?captions=0` | without the captions |

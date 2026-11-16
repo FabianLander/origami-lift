@@ -9,7 +9,8 @@
  * for the height t on the slider, for three tori (`src/data/`, written by `scripts/make-data.ts`).
  *
  * URL options, all optional (the address bar keeps them up to date):
- *   ?torus=regular|square|hex   ?t=0.1081   ?ui=0 (controls hidden)   ?lines=0   ?beads=0
+ *   ?torus=regular|square|hex   ?t=0.1081   ?ui=0 (controls hidden)   ?lines=0
+ *   ?beads=0                    no bead where the lift puts a vertex (there is no button for it)
  *   ?which=0,1,3                which vertices have a line
  *   ?railw=0.00065 ?beadw=0.0039 radii in diameters of Ψ
  *   ?captions=0   ?covers=0 (no maps of the universal covers)   ?paths=0 (no vertex paths)   ?camera=ortho
@@ -162,6 +163,7 @@ function load(key: string): void {
   if (!Number.isFinite(state.t) || key !== initialTorus || tFromUrlUsed) state.t = data.tOpen;
   if (key === initialTorus && !tFromUrlUsed) { state.t = clampT(num('t', data.tOpen)); tFromUrlUsed = true; }
   row = new Row(model, lines, grain, TEX, DRAFT, CONVENTION[key]);
+  fullPath = null;
   // the pseudo-modulus is reported in the paper's own basis, reduced the way Ψ's modulus reduces
   toFundamental = reducer(paperTau(CONVENTION[key], model.T, model.flat));
   const lift = model.lift(state.t), cor = model.corrected(state.t);
@@ -207,7 +209,6 @@ function setT(t: number, final: boolean): void {
   panels[2].redraw!(state.t, cor.positions);
   drawn = { lift, corrected: cor.positions };
   drawCovers('tori');
-  drawPaths();
   window.clearTimeout(settle);
   if (final) { panels[1].print!('final'); panels[2].print!('final'); }
   else {
@@ -220,7 +221,15 @@ function setT(t: number, final: boolean): void {
 }
 
 /** The vertices' paths on the corrected torus, from the plane up to the height now set. */
-function drawPaths(): void { panels[2]?.setPaths?.(state.paths ? model.pathTo(state.t) : null); }
+/**
+ * The vertices' paths on the corrected torus, whole: from the plane to the top of the slider,
+ * whatever the height now set. Computed once per torus (it fills the solver's grid).
+ */
+let fullPath: Float64Array[] | null = null;
+function drawPaths(): void {
+  if (state.paths && !fullPath) fullPath = model.pathTo(model.tEnd);
+  panels[2]?.setPaths?.(state.paths ? fullPath : null);
+}
 
 const statusEl = document.getElementById('status')!;
 function status(lift: Float64Array, cor: { positions: Float64Array; found: boolean; move: number }): void {
@@ -426,7 +435,6 @@ function setLines(on: boolean): void {
   syncControls(); writeUrl();
 }
 document.getElementById('lines')!.addEventListener('click', () => setLines(!lines.on));
-document.getElementById('beads')!.addEventListener('click', () => { lines.beads = !lines.beads; for (const p of panels) p.rails.refresh(); syncControls(); writeUrl(); });
 document.getElementById('captionsbtn')!.addEventListener('click', () => { state.captions = !state.captions; syncControls(); fit(); writeUrl(); });
 function setCovers(on: boolean): void { state.covers = on; syncControls(); fit(); writeUrl(); }
 function setPathsOn(on: boolean): void { state.paths = on; drawPaths(); syncControls(); writeUrl(); }
@@ -489,7 +497,7 @@ function syncControls(): void {
   tIn.value = String(state.t);
   tOut.value = state.t.toFixed(state.t < 0.02 ? 5 : 4);
   tIn.title = `the height of the highest vertex, in diameters of Ψ. The corrected torus is embedded up to t = ${model.data.embeddedUntil.toFixed(model.data.embeddedUntil < 0.02 ? 5 : 4)}`;
-  pressed('lines', lines.on); pressed('beads', lines.beads);
+  pressed('lines', lines.on);
   pressed('captionsbtn', state.captions); pressed('camera', state.ortho); pressed('coversbtn', state.covers); pressed('pathsbtn', state.paths);
   document.body.classList.toggle('nocaptions', !state.captions);
   document.body.classList.toggle('nocovers', !state.covers);
